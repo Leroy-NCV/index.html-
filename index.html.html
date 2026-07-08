@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motorvoorraad — Basis ERP</title>
+<style>
+  :root{
+    --paper:#EDEAE2;
+    --panel:#F7F5F0;
+    --graphite:#2B2F36;
+    --steel:#435363;
+    --steel-dark:#323E4A;
+    --amber:#C77728;
+    --amber-dark:#A8611E;
+    --green:#4F7C5B;
+    --rust:#B5482E;
+    --line:#D9D4C8;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box;}
+  .app{
+    font-family:'Inter', sans-serif;
+    background:var(--paper);
+    color:var(--graphite);
+    min-height:100%;
+    display:flex;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .sidebar{
+    width:180px;
+    flex-shrink:0;
+    background:var(--steel-dark);
+    color:#EDEAE2;
+    padding:20px 0;
+    display:flex;
+    flex-direction:column;
+  }
+  .brand{
+    padding:0 18px 18px 18px;
+    border-bottom:1px solid rgba(255,255,255,0.12);
+    margin-bottom:10px;
+  }
+  .brand-tag{
+    font-family:'Oswald',sans-serif;
+    font-size:10px;
+    letter-spacing:2px;
+    color:var(--amber);
+    text-transform:uppercase;
+    font-weight:600;
+  }
+  .brand-title{
+    font-family:'Oswald',sans-serif;
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    margin-top:2px;
+  }
+  .nav-btn{
+    all:unset;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:11px 18px;
+    font-size:13.5px;
+    font-weight:500;
+    color:#C7CDD3;
+    border-left:3px solid transparent;
+  }
+  .nav-btn:hover{ background:rgba(255,255,255,0.06); color:#fff; }
+  .nav-btn.active{
+    background:rgba(199,119,40,0.14);
+    color:#fff;
+    border-left:3px solid var(--amber);
+  }
+  .nav-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:1px;
+  }
+  .main{
+    flex:1;
+    padding:26px 30px;
+    overflow-y:auto;
+    max-height:100vh;
+  }
+  h1.page-title{
+    font-family:'Oswald',sans-serif;
+    font-size:22px;
+    font-weight:700;
+    margin:0 0 3px 0;
+  }
+  .page-sub{
+    font-size:13px;
+    color:#6B7480;
+    margin:0 0 20px 0;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .grid-cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:12px;
+    margin-bottom:22px;
+  }
+  .stat-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:4px solid var(--steel);
+    border-radius:8px;
+    padding:12px 14px;
+  }
+  .stat-card.low{ border-left-color:var(--rust); }
+  .stat-motor{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:600;
+    font-size:14px;
+    letter-spacing:0.5px;
+  }
+  .stat-count{
+    font-family:'Oswald',sans-serif;
+    font-size:26px;
+    font-weight:700;
+    margin-top:2px;
+  }
+  .stat-label{ font-size:11px; color:#7A8390; text-transform:uppercase; letter-spacing:0.5px;}
+  .badge-low{
+    display:inline-block;
+    margin-top:6px;
+    font-size:10.5px;
+    font-weight:600;
+    color:var(--rust);
+    background:rgba(181,72,46,0.1);
+    padding:2px 6px;
+    border-radius:4px;
+  }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center;}
+  input[type=text], input[type=number], select, textarea{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    color:var(--graphite);
+  }
+  select{cursor:pointer;}
+  .btn{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:8px 14px;
+    border-radius:6px;
+    border:none;
+    cursor:pointer;
+  }
+  .btn-primary{ background:var(--amber); color:#fff; }
+  .btn-primary:hover{ background:var(--amber-dark); }
+  .btn-ghost{ background:transparent; color:var(--steel-dark); border:1px solid var(--line); }
+  .btn-ghost:hover{ background:#fff; }
+  .btn-danger{ background:transparent; color:var(--rust); border:1px solid rgba(181,72,46,0.35); }
+  .btn-danger:hover{ background:rgba(181,72,46,0.08); }
+  .btn-sm{ padding:4px 9px; font-size:12px; }
+
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .form-grid label{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    color:#7A8390;
+    display:block;
+    margin-bottom:4px;
+    font-weight:600;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    color:#7A8390;
+    font-weight:600;
+    padding:8px 10px;
+    border-bottom:2px solid var(--line);
+  }
+  tbody td{
+    padding:9px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:middle;
+  }
+  tbody tr:hover{ background:rgba(67,83,99,0.05); }
+  .pill{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    font-weight:500;
+    background:rgba(67,83,99,0.1);
+    color:var(--steel-dark);
+    padding:2px 7px;
+    border-radius:5px;
+  }
+  .cond-pill{ padding:2px 7px; border-radius:5px; font-size:11.5px; font-weight:500;}
+  .cond-good{ background:rgba(79,124,91,0.13); color:var(--green); }
+  .cond-mid{ background:rgba(199,119,40,0.13); color:var(--amber-dark); }
+  .cond-na{ background:rgba(122,131,144,0.13); color:#7A8390; }
+  .empty-state{
+    text-align:center;
+    padding:50px 20px;
+    color:#8A93A0;
+  }
+  .empty-state .em-title{
+    font-family:'Oswald',sans-serif;
+    font-size:16px;
+    color:var(--graphite);
+    margin-bottom:4px;
+    font-weight:600;
+  }
+  .settings-block{ margin-bottom:24px; }
+  .settings-block h3{
+    font-family:'Oswald',sans-serif;
+    font-size:14px;
+    margin-bottom:10px;
+  }
+  .chip-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    display:flex; align-items:center; gap:6px;
+    background:#fff; border:1px solid var(--line);
+    padding:5px 6px 5px 10px; border-radius:16px;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+  }
+  .chip button{
+    all:unset; cursor:pointer; color:var(--rust); font-weight:700;
+    width:16px; height:16px; display:flex; align-items:center; justify-content:center;
+    border-radius:50%;
+  }
+  .chip button:hover{ background:rgba(181,72,46,0.12); }
+  .add-inline{ display:flex; gap:8px; margin-top:10px; }
+  .toast{
+    position:fixed; bottom:20px; right:20px;
+    background:var(--graphite); color:#fff;
+    padding:10px 16px; border-radius:8px; font-size:13px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+    opacity:0; transform:translateY(8px);
+    transition:all 0.25s ease;
+    pointer-events:none;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+  .loading{ padding:40px; text-align:center; color:#8A93A0; font-size:13px; }
+  .edit-row input, .edit-row select{ width:100%; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  @media (max-width:720px){
+    .app{ flex-direction:column; }
+    .sidebar{ width:100%; flex-direction:row; padding:10px; overflow-x:auto; }
+    .brand{ display:none; }
+    .form-grid{ grid-template-columns:1fr 1fr; }
+  }
+</style>
+
+</head>
+<body style="margin:0; background:#EDEAE2;">
+<div id="root" style="max-width:1200px; margin:0 auto; padding:16px; min-height:100vh;"></div>
+
+<!-- VUL HIER JE EIGEN SUPABASE GEGEVENS IN (te vinden in Supabase: Project Settings > API) -->
+<script>
+  window.SUPABASE_URL = "https://rsrkjebjiekyodhsmbru.supabase.co";
+  window.SUPABASE_ANON_KEY = "sb_publishable_rxLyu3guReuvASd0imyFcw_68mofJGx";
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="text/babel">
+const {useState, useEffect, useCallback} = React;
+
+const DEFAULT_SETTINGS = {
+  motortypes: ["S165","N165","EY17","S185","N18","EY18","M200","N21","M220","EY22","T220","T240","T260","N260","EY26","N280","N330","EY33"],
+  condities: ["N/A","Niet gereconditioneerd","Deels gereconditioneerd","Gereconditioneerd"],
+  turbotypes: [],
+  lowStockThreshold: 5
+};
+
+const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+function uid(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function condClass(c){
+  if(c === "Gereconditioneerd") return "cond-good";
+  if(c === "Deels gereconditioneerd") return "cond-mid";
+  return "cond-na";
+}
+
+function Toast({msg}){
+  return <div className={"toast" + (msg ? " show" : "")}>{msg}</div>;
+}
+
+function App(){
+  const [loading, setLoading] = useState(true);
+  const [parts, setParts] = useState([]);
+  const [turbos, setTurbos] = useState([]);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [tab, setTab] = useState('dashboard');
+  const [toast, setToast] = useState('');
+  const [filterMotor, setFilterMotor] = useState('');
+  const [filterTurbo, setFilterTurbo] = useState('');
+  const [searchTurbo, setSearchTurbo] = useState('');
+  const [search, setSearch] = useState('');
+  const [editId, setEditId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [editTurboId, setEditTurboId] = useState(null);
+  const [editTurboDraft, setEditTurboDraft] = useState(null);
+
+  const [form, setForm] = useState({motortype:'', locatie:'', omschrijving:'', aantal:'', conditie:'N/A', opmerking:''});
+  const [turboForm, setTurboForm] = useState({turbotype:'', locatie:'', omschrijving:'', aantal:'', conditie:'N/A', opmerking:''});
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
+  const [newMotortype, setNewMotortype] = useState('');
+  const [newConditie, setNewConditie] = useState('');
+  const [newTurbotype, setNewTurbotype] = useState('');
+  const [thresholdDraft, setThresholdDraft] = useState(DEFAULT_SETTINGS.lowStockThreshold);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(()=>setToast(''), 2200);
+  };
+
+  const loadAll = useCallback(async () => {
+    const { data: partsData, error: partsErr } = await supabase.from('parts').select('*').order('updated_at', { ascending: false });
+    if(!partsErr && partsData){
+      setParts(partsData.map(p => ({
+        id: p.id, motortype: p.motortype, locatie: p.locatie, omschrijving: p.omschrijving,
+        aantal: p.aantal, conditie: p.conditie, opmerking: p.opmerking || '', updatedAt: p.updated_at
+      })));
+    }
+    const { data: turbosData, error: turbosErr } = await supabase.from('turbos').select('*').order('updated_at', { ascending: false });
+    if(!turbosErr && turbosData){
+      setTurbos(turbosData.map(t => ({
+        id: t.id, turbotype: t.turbotype, locatie: t.locatie, omschrijving: t.omschrijving,
+        aantal: t.aantal, conditie: t.conditie, opmerking: t.opmerking || '', updatedAt: t.updated_at
+      })));
+    }
+    const { data: settingsData, error: settingsErr } = await supabase.from('settings').select('*').eq('id', 1).single();
+    if(!settingsErr && settingsData){
+      const parsed = {
+        motortypes: settingsData.motortypes,
+        condities: settingsData.condities,
+        turbotypes: settingsData.turbotypes || [],
+        lowStockThreshold: settingsData.low_stock_threshold
+      };
+      setSettings(parsed);
+      setThresholdDraft(parsed.lowStockThreshold ?? 5);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try{
+        await loadAll();
+      }catch(e){
+        showToast('Kon geen verbinding maken met de database — check je Supabase-gegevens');
+      }
+      setLoading(false);
+    })();
+  }, [loadAll]);
+
+  const persistParts = useCallback(async (next) => {
+    setParts(next);
+  }, []);
+
+  const persistTurbos = useCallback(async (next) => {
+    setTurbos(next);
+  }, []);
+
+  const persistSettings = useCallback(async (next) => {
+    setSettings(next);
+    try{
+      await supabase.from('settings').update({
+        motortypes: next.motortypes,
+        condities: next.condities,
+        turbotypes: next.turbotypes,
+        low_stock_threshold: next.lowStockThreshold
+      }).eq('id', 1);
+    }catch(e){
+      showToast('Instellingen opslaan mislukt');
+    }
+  }, []);
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    setImporting(true);
+    setImportSummary(null);
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const sheetName = wb.SheetNames.find(n => n.toLowerCase() === 'invoer') || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+      const norm = (s) => String(s).trim().toLowerCase();
+      const pick = (row, ...names) => {
+        const keys = Object.keys(row);
+        for(const name of names){
+          const key = keys.find(k => norm(k) === norm(name));
+          if(key !== undefined) return row[key];
+        }
+        return '';
+      };
+
+      const entries = [];
+      for(const row of rows){
+        const motortype = String(pick(row, 'Motortype', 'motor type')).trim();
+        const locatie = String(pick(row, 'Locatie')).trim();
+        const omschrijving = String(pick(row, 'Omschrijving')).trim();
+        const aantalRaw = pick(row, 'Aantal');
+        const conditie = String(pick(row, 'Conditie')).trim() || 'N/A';
+        const opmerking = String(pick(row, 'Opmerking')).trim();
+        if(!motortype && !omschrijving) continue; // sla lege regels over
+        entries.push({
+          id: uid(),
+          motortype, locatie, omschrijving,
+          aantal: Number(aantalRaw) || 0,
+          conditie,
+          opmerking,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      if(entries.length === 0){
+        showToast('Geen bruikbare rijen gevonden in dit bestand');
+        setImporting(false);
+        e.target.value = '';
+        return;
+      }
+
+      const CHUNK = 200;
+      let inserted = 0;
+      for(let i = 0; i < entries.length; i += CHUNK){
+        const batch = entries.slice(i, i + CHUNK);
+        const { error } = await supabase.from('parts').insert(batch);
+        if(error){
+          showToast('Importeren gestopt bij fout: ' + error.message);
+          break;
+        }
+        inserted += batch.length;
+      }
+
+      await loadAll();
+      setImportSummary({ total: rows.length, inserted, sheet: sheetName });
+      showToast(inserted + ' onderdelen geïmporteerd');
+    }catch(err){
+      showToast('Kon bestand niet lezen: ' + err.message);
+    }
+    setImporting(false);
+    e.target.value = '';
+  };
+
+  const addPart = async (e) => {
+    e.preventDefault();
+    if(!form.motortype || !form.locatie || !form.omschrijving || form.aantal === ''){
+      showToast('Vul motortype, locatie, omschrijving en aantal in');
+      return;
+    }
+    const entry = {
+      id: uid(),
+      motortype: form.motortype,
+      locatie: form.locatie.trim(),
+      omschrijving: form.omschrijving.trim(),
+      aantal: Number(form.aantal),
+      conditie: form.conditie,
+      opmerking: form.opmerking.trim(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('parts').insert(entry);
+    if(error){ showToast('Opslaan mislukt: ' + error.message); return; }
+    await persistParts([{...entry, updatedAt: entry.updated_at}, ...parts]);
+    setForm({motortype: form.motortype, locatie:'', omschrijving:'', aantal:'', conditie:'N/A', opmerking:''});
+    showToast('Onderdeel toegevoegd');
+  };
+
+  const deletePart = async (id) => {
+    const { error } = await supabase.from('parts').delete().eq('id', id);
+    if(error){ showToast('Verwijderen mislukt: ' + error.message); return; }
+    await persistParts(parts.filter(p => p.id !== id));
+    showToast('Onderdeel verwijderd');
+  };
+
+  const startEdit = (p) => {
+    setEditId(p.id);
+    setEditDraft({...p});
+  };
+
+  const saveEdit = async () => {
+    const updated = {...editDraft, aantal: Number(editDraft.aantal), updatedAt: new Date().toISOString()};
+    const { error } = await supabase.from('parts').update({
+      motortype: updated.motortype, locatie: updated.locatie, omschrijving: updated.omschrijving,
+      aantal: updated.aantal, conditie: updated.conditie, opmerking: updated.opmerking,
+      updated_at: updated.updatedAt
+    }).eq('id', editId);
+    if(error){ showToast('Bijwerken mislukt: ' + error.message); return; }
+    const next = parts.map(p => p.id === editId ? updated : p);
+    await persistParts(next);
+    setEditId(null);
+    setEditDraft(null);
+    showToast('Wijziging opgeslagen');
+  };
+
+  const cancelEdit = () => { setEditId(null); setEditDraft(null); };
+
+  const addTurbo = async (e) => {
+    e.preventDefault();
+    if(!turboForm.turbotype || !turboForm.locatie || !turboForm.omschrijving || turboForm.aantal === ''){
+      showToast('Vul turbotype, locatie, omschrijving en aantal in');
+      return;
+    }
+    const entry = {
+      id: uid(),
+      turbotype: turboForm.turbotype,
+      locatie: turboForm.locatie.trim(),
+      omschrijving: turboForm.omschrijving.trim(),
+      aantal: Number(turboForm.aantal),
+      conditie: turboForm.conditie,
+      opmerking: turboForm.opmerking.trim(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('turbos').insert(entry);
+    if(error){ showToast('Opslaan mislukt: ' + error.message); return; }
+    await persistTurbos([{...entry, updatedAt: entry.updated_at}, ...turbos]);
+    setTurboForm({turbotype: turboForm.turbotype, locatie:'', omschrijving:'', aantal:'', conditie:'N/A', opmerking:''});
+    showToast('Turbo toegevoegd');
+  };
+
+  const deleteTurbo = async (id) => {
+    const { error } = await supabase.from('turbos').delete().eq('id', id);
+    if(error){ showToast('Verwijderen mislukt: ' + error.message); return; }
+    await persistTurbos(turbos.filter(t => t.id !== id));
+    showToast('Turbo verwijderd');
+  };
+
+  const startEditTurbo = (t) => {
+    setEditTurboId(t.id);
+    setEditTurboDraft({...t});
+  };
+
+  const saveEditTurbo = async () => {
+    const updated = {...editTurboDraft, aantal: Number(editTurboDraft.aantal), updatedAt: new Date().toISOString()};
+    const { error } = await supabase.from('turbos').update({
+      turbotype: updated.turbotype, locatie: updated.locatie, omschrijving: updated.omschrijving,
+      aantal: updated.aantal, conditie: updated.conditie, opmerking: updated.opmerking,
+      updated_at: updated.updatedAt
+    }).eq('id', editTurboId);
+    if(error){ showToast('Bijwerken mislukt: ' + error.message); return; }
+    const next = turbos.map(t => t.id === editTurboId ? updated : t);
+    await persistTurbos(next);
+    setEditTurboId(null);
+    setEditTurboDraft(null);
+    showToast('Wijziging opgeslagen');
+  };
+
+  const cancelEditTurbo = () => { setEditTurboId(null); setEditTurboDraft(null); };
+
+  const addTurbotype = async () => {
+    const v = newTurbotype.trim();
+    if(!v || settings.turbotypes.includes(v)) return;
+    const next = {...settings, turbotypes:[...settings.turbotypes, v]};
+    await persistSettings(next);
+    setNewTurbotype('');
+  };
+
+  const removeTurbotype = async (v) => {
+    const next = {...settings, turbotypes: settings.turbotypes.filter(t => t !== v)};
+    await persistSettings(next);
+  };
+
+  const addMotortype = async () => {
+    const v = newMotortype.trim();
+    if(!v || settings.motortypes.includes(v)) return;
+    const next = {...settings, motortypes:[...settings.motortypes, v]};
+    await persistSettings(next);
+    setNewMotortype('');
+  };
+
+  const removeMotortype = async (v) => {
+    const next = {...settings, motortypes: settings.motortypes.filter(m => m !== v)};
+    await persistSettings(next);
+  };
+
+  const addConditie = async () => {
+    const v = newConditie.trim();
+    if(!v || settings.condities.includes(v)) return;
+    const next = {...settings, condities:[...settings.condities, v]};
+    await persistSettings(next);
+    setNewConditie('');
+  };
+
+  const removeConditie = async (v) => {
+    const next = {...settings, condities: settings.condities.filter(c => c !== v)};
+    await persistSettings(next);
+  };
+
+  const saveThreshold = async () => {
+    const next = {...settings, lowStockThreshold: Number(thresholdDraft) || 0};
+    await persistSettings(next);
+    showToast('Drempel opgeslagen');
+  };
+
+  if(loading){
+    return <div className="app"><div className="main"><div className="loading">Voorraad wordt geladen…</div></div></div>;
+  }
+
+  const filtered = parts.filter(p => {
+    const matchMotor = !filterMotor || p.motortype === filterMotor;
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q || p.omschrijving.toLowerCase().includes(q) || p.locatie.toLowerCase().includes(q) || p.motortype.toLowerCase().includes(q);
+    return matchMotor && matchSearch;
+  });
+
+  const filteredTurbos = turbos.filter(t => {
+    const matchTurbo = !filterTurbo || t.turbotype === filterTurbo;
+    const q = searchTurbo.trim().toLowerCase();
+    const matchSearch = !q || t.omschrijving.toLowerCase().includes(q) || t.locatie.toLowerCase().includes(q) || t.turbotype.toLowerCase().includes(q);
+    return matchTurbo && matchSearch;
+  });
+
+  const byMotor = {};
+  parts.forEach(p => {
+    byMotor[p.motortype] = byMotor[p.motortype] || {count:0, total:0, low:false};
+    byMotor[p.motortype].count += 1;
+    byMotor[p.motortype].total += p.aantal;
+    if(p.aantal < settings.lowStockThreshold) byMotor[p.motortype].low = true;
+  });
+
+  const totalParts = parts.length;
+  const totalUnits = parts.reduce((a,p)=>a+p.aantal,0);
+  const lowStockRows = parts.filter(p => p.aantal < settings.lowStockThreshold);
+  const totalTurbos = turbos.length;
+  const totalTurboUnits = turbos.reduce((a,t)=>a+t.aantal,0);
+  const lowStockTurboRows = turbos.filter(t => t.aantal < settings.lowStockThreshold);
+
+  return (
+    <div className="app">
+      <div className="sidebar">
+        <div className="brand">
+          <div className="brand-tag">Basis ERP</div>
+          <div className="brand-title">Motorvoorraad</div>
+        </div>
+        <button className={"nav-btn" + (tab==='dashboard'?' active':'')} onClick={()=>setTab('dashboard')}>Dashboard</button>
+        <button className={"nav-btn" + (tab==='voorraad'?' active':'')} onClick={()=>setTab('voorraad')}>Voorraad</button>
+        <button className={"nav-btn" + (tab==='turbos'?' active':'')} onClick={()=>setTab('turbos')}>Turbos</button>
+        <button className={"nav-btn" + (tab==='instellingen'?' active':'')} onClick={()=>setTab('instellingen')}>Instellingen</button>
+        <div style={{marginTop:'auto', paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.12)'}}>
+          <button className="nav-btn" onClick={async ()=>{ await loadAll(); showToast('Bijgewerkt'); }}>↻ Vernieuwen</button>
+        </div>
+      </div>
+
+      <div className="main">
+        {tab === 'dashboard' && (
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-sub">{totalParts} onderdelen · {totalUnits} stuks totaal · {settings.motortypes.length} motortypes</p>
+
+            {lowStockRows.length > 0 && (
+              <div className="card" style={{borderLeft:'4px solid var(--rust)', marginBottom:20}}>
+                <strong style={{color:'var(--rust)'}}>Lage voorraad</strong>
+                <span style={{fontSize:12, color:'#7A8390'}}> — onder de {settings.lowStockThreshold} stuks</span>
+                <table style={{marginTop:10}}>
+                  <thead><tr><th>Motortype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th></tr></thead>
+                  <tbody>
+                    {lowStockRows.map(p => (
+                      <tr key={p.id}>
+                        <td><span className="pill">{p.motortype}</span></td>
+                        <td>{p.locatie}</td>
+                        <td>{p.omschrijving}</td>
+                        <td style={{color:'var(--rust)', fontWeight:600}}>{p.aantal}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="grid-cards">
+              {settings.motortypes.map(mt => {
+                const d = byMotor[mt] || {count:0,total:0,low:false};
+                return (
+                  <div key={mt} className={"stat-card" + (d.low?" low":"")} onClick={()=>{setFilterMotor(mt); setTab('voorraad');}} style={{cursor:'pointer'}}>
+                    <div className="stat-motor">{mt}</div>
+                    <div className="stat-count">{d.total}</div>
+                    <div className="stat-label">{d.count} regel{d.count===1?'':'s'}</div>
+                    {d.low && <div className="badge-low">Lage voorraad</div>}
+                  </div>
+                );
+              })}
+              <div className={"stat-card" + (lowStockTurboRows.length > 0 ? " low" : "")} onClick={()=>setTab('turbos')} style={{cursor:'pointer'}}>
+                <div className="stat-motor">Turbo's</div>
+                <div className="stat-count">{totalTurboUnits}</div>
+                <div className="stat-label">{totalTurbos} regel{totalTurbos===1?'':'s'}</div>
+                {lowStockTurboRows.length > 0 && <div className="badge-low">Lage voorraad</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'voorraad' && (
+          <div>
+            <h1 className="page-title">Voorraad</h1>
+            <p className="page-sub">Nieuw onderdeel toevoegen en bestaande voorraad beheren</p>
+
+            <div className="card" style={{marginBottom:20, borderLeft:'4px solid var(--steel)'}}>
+              <strong>Excel importeren</strong>
+              <p style={{fontSize:12, color:'#7A8390', margin:'4px 0 10px 0'}}>
+                Upload een .xlsx bestand met kolommen Motortype, Locatie, Omschrijving, Aantal, Conditie, Opmerking (zoals het "Invoer"-tabblad). Rijen worden toegevoegd aan de bestaande voorraad, niet overschreven.
+              </p>
+              <div className="add-inline">
+                <input type="file" accept=".xlsx,.xls" onChange={handleImportFile} disabled={importing} />
+                {importing && <span style={{fontSize:12, color:'#7A8390'}}>Bezig met importeren…</span>}
+              </div>
+              {importSummary && (
+                <div style={{fontSize:12, color:'var(--green)', marginTop:8}}>
+                  {importSummary.inserted} van {importSummary.total} rijen geïmporteerd uit tabblad "{importSummary.sheet}".
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={addPart} className="card" style={{marginBottom:20}}>
+              <div className="form-grid">
+                <div>
+                  <label>Motortype</label>
+                  <select value={form.motortype} onChange={e=>setForm({...form, motortype:e.target.value})} style={{width:'100%'}}>
+                    <option value="">Kies...</option>
+                    {settings.motortypes.map(mt => <option key={mt} value={mt}>{mt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label>Locatie</label>
+                  <input type="text" value={form.locatie} onChange={e=>setForm({...form, locatie:e.target.value})} style={{width:'100%'}} placeholder="bv. A-12-3" />
+                </div>
+                <div style={{gridColumn:'span 2'}}>
+                  <label>Omschrijving</label>
+                  <input type="text" value={form.omschrijving} onChange={e=>setForm({...form, omschrijving:e.target.value})} style={{width:'100%'}} placeholder="bv. Krukas" />
+                </div>
+                <div>
+                  <label>Aantal</label>
+                  <input type="number" min="0" value={form.aantal} onChange={e=>setForm({...form, aantal:e.target.value})} style={{width:'100%'}} />
+                </div>
+                <div>
+                  <label>Conditie</label>
+                  <select value={form.conditie} onChange={e=>setForm({...form, conditie:e.target.value})} style={{width:'100%'}}>
+                    {settings.condities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{gridColumn:'span 5'}}>
+                  <label>Opmerking</label>
+                  <input type="text" value={form.opmerking} onChange={e=>setForm({...form, opmerking:e.target.value})} style={{width:'100%'}} placeholder="optioneel" />
+                </div>
+                <div style={{display:'flex', alignItems:'flex-end'}}>
+                  <button className="btn btn-primary" type="submit" style={{width:'100%'}}>Toevoegen</button>
+                </div>
+              </div>
+            </form>
+
+            <div className="toolbar">
+              <select value={filterMotor} onChange={e=>setFilterMotor(e.target.value)}>
+                <option value="">Alle motortypes</option>
+                {settings.motortypes.map(mt => <option key={mt} value={mt}>{mt}</option>)}
+              </select>
+              <input type="text" placeholder="Zoeken op omschrijving, locatie of type..." value={search} onChange={e=>setSearch(e.target.value)} style={{minWidth:260}} />
+              {filterMotor && <button className="btn btn-ghost btn-sm" onClick={()=>setFilterMotor('')}>Filter wissen</button>}
+              <span style={{marginLeft:'auto', fontSize:12, color:'#7A8390'}}>{filtered.length} van {parts.length} regels</span>
+            </div>
+
+            <div className="card" style={{padding:0, overflowX:'auto'}}>
+              {filtered.length === 0 ? (
+                <div className="empty-state">
+                  <div className="em-title">Geen onderdelen gevonden</div>
+                  <div>Voeg hierboven een onderdeel toe of pas je filter aan.</div>
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Motortype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th><th>Opmerking</th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(p => editId === p.id ? (
+                      <tr key={p.id} className="edit-row">
+                        <td>
+                          <select value={editDraft.motortype} onChange={e=>setEditDraft({...editDraft, motortype:e.target.value})}>
+                            {settings.motortypes.map(mt => <option key={mt} value={mt}>{mt}</option>)}
+                          </select>
+                        </td>
+                        <td><input type="text" value={editDraft.locatie} onChange={e=>setEditDraft({...editDraft, locatie:e.target.value})} /></td>
+                        <td><input type="text" value={editDraft.omschrijving} onChange={e=>setEditDraft({...editDraft, omschrijving:e.target.value})} /></td>
+                        <td><input type="number" value={editDraft.aantal} onChange={e=>setEditDraft({...editDraft, aantal:e.target.value})} /></td>
+                        <td>
+                          <select value={editDraft.conditie} onChange={e=>setEditDraft({...editDraft, conditie:e.target.value})}>
+                            {settings.condities.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td><input type="text" value={editDraft.opmerking} onChange={e=>setEditDraft({...editDraft, opmerking:e.target.value})} /></td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          <button className="btn btn-primary btn-sm" onClick={saveEdit} style={{marginRight:6}}>Opslaan</button>
+                          <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>Annuleren</button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={p.id}>
+                        <td><span className="pill">{p.motortype}</span></td>
+                        <td>{p.locatie}</td>
+                        <td>{p.omschrijving}</td>
+                        <td style={{fontWeight:600, color: p.aantal < settings.lowStockThreshold ? 'var(--rust)' : 'inherit'}}>{p.aantal}</td>
+                        <td><span className={"cond-pill " + condClass(p.conditie)}>{p.conditie}</span></td>
+                        <td style={{color:'#7A8390'}}>{p.opmerking || '—'}</td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          <button className="btn btn-ghost btn-sm" onClick={()=>startEdit(p)} style={{marginRight:6}}>Bewerken</button>
+                          <button className="btn btn-danger btn-sm" onClick={()=>deletePart(p.id)}>Verwijderen</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'turbos' && (
+          <div>
+            <h1 className="page-title">Turbos</h1>
+            <p className="page-sub">{totalTurbos} turbo's · {totalTurboUnits} stuks totaal</p>
+
+            {lowStockTurboRows.length > 0 && (
+              <div className="card" style={{borderLeft:'4px solid var(--rust)', marginBottom:20}}>
+                <strong style={{color:'var(--rust)'}}>Lage voorraad turbo's</strong>
+                <span style={{fontSize:12, color:'#7A8390'}}> — onder de {settings.lowStockThreshold} stuks</span>
+                <table style={{marginTop:10}}>
+                  <thead><tr><th>Turbotype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th></tr></thead>
+                  <tbody>
+                    {lowStockTurboRows.map(t => (
+                      <tr key={t.id}>
+                        <td><span className="pill">{t.turbotype}</span></td>
+                        <td>{t.locatie}</td>
+                        <td>{t.omschrijving}</td>
+                        <td style={{color:'var(--rust)', fontWeight:600}}>{t.aantal}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <form onSubmit={addTurbo} className="card" style={{marginBottom:20}}>
+              <div className="form-grid">
+                <div>
+                  <label>Turbotype</label>
+                  {settings.turbotypes.length > 0 ? (
+                    <select value={turboForm.turbotype} onChange={e=>setTurboForm({...turboForm, turbotype:e.target.value})} style={{width:'100%'}}>
+                      <option value="">Kies...</option>
+                      {settings.turbotypes.map(tt => <option key={tt} value={tt}>{tt}</option>)}
+                    </select>
+                  ) : (
+                    <input type="text" value={turboForm.turbotype} onChange={e=>setTurboForm({...turboForm, turbotype:e.target.value})} style={{width:'100%'}} placeholder="bv. TD04" />
+                  )}
+                </div>
+                <div>
+                  <label>Locatie</label>
+                  <input type="text" value={turboForm.locatie} onChange={e=>setTurboForm({...turboForm, locatie:e.target.value})} style={{width:'100%'}} placeholder="bv. C-03-2" />
+                </div>
+                <div style={{gridColumn:'span 2'}}>
+                  <label>Omschrijving</label>
+                  <input type="text" value={turboForm.omschrijving} onChange={e=>setTurboForm({...turboForm, omschrijving:e.target.value})} style={{width:'100%'}} placeholder="bv. Turbo compleet" />
+                </div>
+                <div>
+                  <label>Aantal</label>
+                  <input type="number" min="0" value={turboForm.aantal} onChange={e=>setTurboForm({...turboForm, aantal:e.target.value})} style={{width:'100%'}} />
+                </div>
+                <div>
+                  <label>Conditie</label>
+                  <select value={turboForm.conditie} onChange={e=>setTurboForm({...turboForm, conditie:e.target.value})} style={{width:'100%'}}>
+                    {settings.condities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div style={{gridColumn:'span 5'}}>
+                  <label>Opmerking</label>
+                  <input type="text" value={turboForm.opmerking} onChange={e=>setTurboForm({...turboForm, opmerking:e.target.value})} style={{width:'100%'}} placeholder="optioneel" />
+                </div>
+                <div style={{display:'flex', alignItems:'flex-end'}}>
+                  <button className="btn btn-primary" type="submit" style={{width:'100%'}}>Toevoegen</button>
+                </div>
+              </div>
+            </form>
+
+            <div className="toolbar">
+              <select value={filterTurbo} onChange={e=>setFilterTurbo(e.target.value)}>
+                <option value="">Alle turbotypes</option>
+                {settings.turbotypes.map(tt => <option key={tt} value={tt}>{tt}</option>)}
+              </select>
+              <input type="text" placeholder="Zoeken op omschrijving, locatie of type..." value={searchTurbo} onChange={e=>setSearchTurbo(e.target.value)} style={{minWidth:260}} />
+              {filterTurbo && <button className="btn btn-ghost btn-sm" onClick={()=>setFilterTurbo('')}>Filter wissen</button>}
+              <span style={{marginLeft:'auto', fontSize:12, color:'#7A8390'}}>{filteredTurbos.length} van {turbos.length} regels</span>
+            </div>
+
+            <div className="card" style={{padding:0, overflowX:'auto'}}>
+              {filteredTurbos.length === 0 ? (
+                <div className="empty-state">
+                  <div className="em-title">Geen turbo's gevonden</div>
+                  <div>Voeg hierboven een turbo toe of pas je filter aan.</div>
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Turbotype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th><th>Opmerking</th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTurbos.map(t => editTurboId === t.id ? (
+                      <tr key={t.id} className="edit-row">
+                        <td><input type="text" value={editTurboDraft.turbotype} onChange={e=>setEditTurboDraft({...editTurboDraft, turbotype:e.target.value})} /></td>
+                        <td><input type="text" value={editTurboDraft.locatie} onChange={e=>setEditTurboDraft({...editTurboDraft, locatie:e.target.value})} /></td>
+                        <td><input type="text" value={editTurboDraft.omschrijving} onChange={e=>setEditTurboDraft({...editTurboDraft, omschrijving:e.target.value})} /></td>
+                        <td><input type="number" value={editTurboDraft.aantal} onChange={e=>setEditTurboDraft({...editTurboDraft, aantal:e.target.value})} /></td>
+                        <td>
+                          <select value={editTurboDraft.conditie} onChange={e=>setEditTurboDraft({...editTurboDraft, conditie:e.target.value})}>
+                            {settings.condities.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td><input type="text" value={editTurboDraft.opmerking} onChange={e=>setEditTurboDraft({...editTurboDraft, opmerking:e.target.value})} /></td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          <button className="btn btn-primary btn-sm" onClick={saveEditTurbo} style={{marginRight:6}}>Opslaan</button>
+                          <button className="btn btn-ghost btn-sm" onClick={cancelEditTurbo}>Annuleren</button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={t.id}>
+                        <td><span className="pill">{t.turbotype}</span></td>
+                        <td>{t.locatie}</td>
+                        <td>{t.omschrijving}</td>
+                        <td style={{fontWeight:600, color: t.aantal < settings.lowStockThreshold ? 'var(--rust)' : 'inherit'}}>{t.aantal}</td>
+                        <td><span className={"cond-pill " + condClass(t.conditie)}>{t.conditie}</span></td>
+                        <td style={{color:'#7A8390'}}>{t.opmerking || '—'}</td>
+                        <td style={{whiteSpace:'nowrap'}}>
+                          <button className="btn btn-ghost btn-sm" onClick={()=>startEditTurbo(t)} style={{marginRight:6}}>Bewerken</button>
+                          <button className="btn btn-danger btn-sm" onClick={()=>deleteTurbo(t.id)}>Verwijderen</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'instellingen' && (
+          <div>
+            <h1 className="page-title">Instellingen</h1>
+            <p className="page-sub">Beheer motortypes, conditie-opties en de lage-voorraad drempel</p>
+
+            <div className="card settings-block">
+              <h3>Motortypes</h3>
+              <div className="chip-list">
+                {settings.motortypes.map(mt => (
+                  <div className="chip" key={mt}>{mt}<button onClick={()=>removeMotortype(mt)} title="Verwijderen">×</button></div>
+                ))}
+              </div>
+              <div className="add-inline">
+                <input type="text" placeholder="Nieuw motortype (bv. T280)" value={newMotortype} onChange={e=>setNewMotortype(e.target.value)} />
+                <button className="btn btn-primary btn-sm" onClick={addMotortype}>Toevoegen</button>
+              </div>
+            </div>
+
+            <div className="card settings-block">
+              <h3>Turbotypes</h3>
+              <p style={{fontSize:12, color:'#7A8390', marginTop:-4, marginBottom:10}}>Zolang deze lijst leeg is, kun je het turbotype vrij intypen bij het toevoegen van een turbo.</p>
+              <div className="chip-list">
+                {settings.turbotypes.map(tt => (
+                  <div className="chip" key={tt}>{tt}<button onClick={()=>removeTurbotype(tt)} title="Verwijderen">×</button></div>
+                ))}
+              </div>
+              <div className="add-inline">
+                <input type="text" placeholder="Nieuw turbotype (bv. TD04)" value={newTurbotype} onChange={e=>setNewTurbotype(e.target.value)} />
+                <button className="btn btn-primary btn-sm" onClick={addTurbotype}>Toevoegen</button>
+              </div>
+            </div>
+
+            <div className="card settings-block">
+              <h3>Conditie-opties</h3>
+              <div className="chip-list">
+                {settings.condities.map(c => (
+                  <div className="chip" key={c}>{c}<button onClick={()=>removeConditie(c)} title="Verwijderen">×</button></div>
+                ))}
+              </div>
+              <div className="add-inline">
+                <input type="text" placeholder="Nieuwe conditie" value={newConditie} onChange={e=>setNewConditie(e.target.value)} />
+                <button className="btn btn-primary btn-sm" onClick={addConditie}>Toevoegen</button>
+              </div>
+            </div>
+
+            <div className="card settings-block">
+              <h3>Lage-voorraad drempel</h3>
+              <p style={{fontSize:12, color:'#7A8390', marginTop:-4, marginBottom:10}}>Onderdelen met een aantal onder deze waarde worden gemarkeerd als lage voorraad.</p>
+              <div className="add-inline">
+                <input type="number" min="0" value={thresholdDraft} onChange={e=>setThresholdDraft(e.target.value)} style={{width:100}} />
+                <button className="btn btn-primary btn-sm" onClick={saveThreshold}>Opslaan</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <Toast msg={toast} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
