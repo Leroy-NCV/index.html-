@@ -307,9 +307,9 @@ function condClass(c){
 
 function Toast({msg, action}){
   return (
-    <div className={"toast" + (msg ? " show" : "")} style={{display:'flex', alignItems:'center', gap:12}}>
+    <div className={"toast" + (msg ? " show" : "")} style={{display:'flex', alignItems:'center', gap:12, pointerEvents: action ? 'auto' : 'none'}}>
       <span>{msg}</span>
-      {action && <button onClick={action.onClick} style={{all:'unset', cursor:'pointer', color:'#F0C48A', fontWeight:700, fontSize:12, textDecoration:'underline'}}>{action.label}</button>}
+      {action && <button onClick={action.onClick} style={{all:'unset', cursor:'pointer', color:'#F0C48A', fontWeight:700, fontSize:12, textDecoration:'underline', pointerEvents:'auto'}}>{action.label}</button>}
     </div>
   );
 }
