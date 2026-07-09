@@ -327,6 +327,11 @@ function App(){
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
+  const [mutateItem, setMutateItem] = useState(null);
+  const [mutateMode, setMutateMode] = useState('uit');
+  const [mutateAmount, setMutateAmount] = useState(1);
+  const [mutateNote, setMutateNote] = useState('');
+  const [mutateDestination, setMutateDestination] = useState('');
   const [editTurboId, setEditTurboId] = useState(null);
   const [editTurboDraft, setEditTurboDraft] = useState(null);
 
@@ -527,7 +532,11 @@ function App(){
   };
 
   const restorePart = async (snapshot) => {
-    const entry = {...snapshot, updated_at: new Date().toISOString()};
+    const entry = {
+      id: snapshot.id, motortype: snapshot.motortype, locatie: snapshot.locatie,
+      omschrijving: snapshot.omschrijving, aantal: snapshot.aantal, conditie: snapshot.conditie,
+      opmerking: snapshot.opmerking || '', updated_at: new Date().toISOString()
+    };
     const { error } = await supabase.from('parts').insert(entry);
     if(error){ showToast('Herstellen mislukt: ' + error.message); return; }
     await persistParts([{...entry, updatedAt: entry.updated_at}, ...parts.filter(p => p.id !== entry.id)]);
@@ -568,6 +577,36 @@ function App(){
 
   const cancelEdit = () => { setEditId(null); setEditDraft(null); };
 
+  const openMutate = (item, mode) => {
+    setMutateItem(item);
+    setMutateMode(mode);
+    setMutateAmount(1);
+    setMutateNote('');
+    setMutateDestination('');
+  };
+
+  const cancelMutate = () => { setMutateItem(null); setMutateNote(''); setMutateDestination(''); };
+
+  const confirmMutate = async () => {
+    const amount = Number(mutateAmount);
+    if(!amount || amount <= 0){ showToast('Vul een aantal groter dan 0 in'); return; }
+    const item = mutateItem;
+    const delta = mutateMode === 'uit' ? -amount : amount;
+    const nieuwAantal = Math.max(0, item.aantal + delta);
+    const { error } = await supabase.from('parts').update({ aantal: nieuwAantal, updated_at: new Date().toISOString() }).eq('id', item.id);
+    if(error){ showToast('Muteren mislukt: ' + error.message); return; }
+    const next = parts.map(p => p.id === item.id ? {...p, aantal: nieuwAantal, updatedAt: new Date().toISOString()} : p);
+    await persistParts(next);
+    logHistory('parts', mutateMode === 'uit' ? 'uitgegeven' : 'aangevuld', item.id, {
+      motortype: item.motortype, locatie: item.locatie, omschrijving: item.omschrijving,
+      aantal: amount, van: item.aantal, naar: nieuwAantal, opmerking: mutateNote.trim(), bestemming: mutateDestination.trim()
+    });
+    showToast(mutateMode === 'uit' ? `${amount} stuks uitgegeven` : `${amount} stuks aangevuld`);
+    setMutateItem(null);
+    setMutateNote('');
+    setMutateDestination('');
+  };
+
   const addTurbo = async (e) => {
     e.preventDefault();
     if(!turboForm.turbotype || !turboForm.locatie || !turboForm.omschrijving || turboForm.aantal === ''){
@@ -593,7 +632,11 @@ function App(){
   };
 
   const restoreTurbo = async (snapshot) => {
-    const entry = {...snapshot, updated_at: new Date().toISOString()};
+    const entry = {
+      id: snapshot.id, turbotype: snapshot.turbotype, locatie: snapshot.locatie,
+      omschrijving: snapshot.omschrijving, aantal: snapshot.aantal, conditie: snapshot.conditie,
+      opmerking: snapshot.opmerking || '', updated_at: new Date().toISOString()
+    };
     const { error } = await supabase.from('turbos').insert(entry);
     if(error){ showToast('Herstellen mislukt: ' + error.message); return; }
     await persistTurbos([{...entry, updatedAt: entry.updated_at}, ...turbos.filter(t => t.id !== entry.id)]);
@@ -939,6 +982,8 @@ function App(){
                         <td><span className={"cond-pill " + condClass(p.conditie)}>{p.conditie}</span></td>
                         <td style={{color:'#7A8390'}}>{p.opmerking || '—'}</td>
                         <td style={{whiteSpace:'nowrap'}}>
+                          <button className="btn btn-primary btn-sm" onClick={()=>openMutate(p, 'uit')} style={{marginRight:6}}>− Uitgeven</button>
+                          <button className="btn btn-ghost btn-sm" onClick={()=>openMutate(p, 'aan')} style={{marginRight:6}}>+ Aanvullen</button>
                           <button className="btn btn-ghost btn-sm" onClick={()=>startEdit(p)} style={{marginRight:6}}>Bewerken</button>
                           <button className="btn btn-danger btn-sm" onClick={()=>deletePart(p.id)}>Verwijderen</button>
                         </td>
@@ -980,7 +1025,12 @@ function App(){
                             <span className={"cond-pill " + (h.action === 'verwijderd' ? 'cond-na' : h.action === 'toegevoegd' ? 'cond-good' : 'cond-mid')}>{h.action}</span>
                           </td>
                           <td><span className="pill">{h.entity === 'parts' ? 'Voorraad' : 'Turbo'}</span></td>
-                          <td>{label} — {omschr}</td>
+                          <td>
+                            {label} — {omschr}
+                            {(h.action === 'uitgegeven' || h.action === 'aangevuld') && (
+                              <span style={{color:'#7A8390', fontSize:12}}> ({h.snapshot.aantal}x, {h.snapshot.van} → {h.snapshot.naar}{h.snapshot.opmerking ? ', ' + h.snapshot.opmerking : ''}{h.snapshot.bestemming ? ', naar: ' + h.snapshot.bestemming : ''})</span>
+                            )}
+                          </td>
                           <td>
                             {h.action === 'verwijderd' && (
                               <button className="btn btn-ghost btn-sm" onClick={()=> h.entity === 'parts' ? restorePart(h.snapshot) : restoreTurbo(h.snapshot)}>Herstellen</button>
@@ -1052,6 +1102,40 @@ function App(){
           </div>
         )}
       </div>
+      {mutateItem && (
+        <div style={{position:'fixed', inset:0, background:'rgba(43,47,54,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:40}}>
+          <div className="card" style={{width:320, background:'#fff'}}>
+            <div style={{fontFamily:'Oswald,sans-serif', fontWeight:700, fontSize:16, marginBottom:4}}>
+              {mutateMode === 'uit' ? 'Uitgeven' : 'Aanvullen'}
+            </div>
+            <div style={{fontSize:12, color:'#7A8390', marginBottom:14}}>
+              {mutateItem.motortype} — {mutateItem.omschrijving} · huidig aantal: <strong>{mutateItem.aantal}</strong>
+            </div>
+            <div style={{display:'flex', gap:8, marginBottom:10}}>
+              <button className={"btn btn-sm " + (mutateMode==='uit' ? 'btn-primary' : 'btn-ghost')} onClick={()=>setMutateMode('uit')} style={{flex:1}}>− Uitgeven</button>
+              <button className={"btn btn-sm " + (mutateMode==='aan' ? 'btn-primary' : 'btn-ghost')} onClick={()=>setMutateMode('aan')} style={{flex:1}}>+ Aanvullen</button>
+            </div>
+            <label style={{fontSize:10.5, textTransform:'uppercase', letterSpacing:'0.4px', color:'#7A8390', display:'block', marginBottom:4, fontWeight:600}}>Aantal</label>
+            <input type="number" min="1" max={mutateMode==='uit' ? mutateItem.aantal : undefined} value={mutateAmount} onChange={e=>setMutateAmount(e.target.value)} style={{width:'100%', marginBottom:10}} autoFocus />
+            <label style={{fontSize:10.5, textTransform:'uppercase', letterSpacing:'0.4px', color:'#7A8390', display:'block', marginBottom:4, fontWeight:600}}>Reden / opmerking (optioneel)</label>
+            <input type="text" placeholder="bv. gebruikt voor project X" value={mutateNote} onChange={e=>setMutateNote(e.target.value)} style={{width:'100%', marginBottom:10}} />
+            {mutateMode === 'uit' && (
+              <React.Fragment>
+                <label style={{fontSize:10.5, textTransform:'uppercase', letterSpacing:'0.4px', color:'#7A8390', display:'block', marginBottom:4, fontWeight:600}}>Bestemming (waar gaat het naartoe?)</label>
+                <input type="text" placeholder="bv. klant Jansen / werkplaats hal 2" value={mutateDestination} onChange={e=>setMutateDestination(e.target.value)} style={{width:'100%', marginBottom:14}} />
+              </React.Fragment>
+            )}
+            {mutateMode === 'uit' && Number(mutateAmount) > mutateItem.aantal && (
+              <div style={{fontSize:12, color:'var(--rust)', marginBottom:10}}>Let op: dit is meer dan er in voorraad is, aantal wordt op 0 gezet.</div>
+            )}
+            <div style={{display:'flex', gap:8}}>
+              <button className="btn btn-primary" onClick={confirmMutate} style={{flex:1}}>Bevestigen</button>
+              <button className="btn btn-ghost" onClick={cancelMutate} style={{flex:1}}>Annuleren</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast msg={toast} action={toastAction} />
     </div>
   );
