@@ -305,8 +305,13 @@ function condClass(c){
   return "cond-na";
 }
 
-function Toast({msg}){
-  return <div className={"toast" + (msg ? " show" : "")}>{msg}</div>;
+function Toast({msg, action}){
+  return (
+    <div className={"toast" + (msg ? " show" : "")} style={{display:'flex', alignItems:'center', gap:12}}>
+      <span>{msg}</span>
+      {action && <button onClick={action.onClick} style={{all:'unset', cursor:'pointer', color:'#F0C48A', fontWeight:700, fontSize:12, textDecoration:'underline'}}>{action.label}</button>}
+    </div>
+  );
 }
 
 function App(){
@@ -334,9 +339,32 @@ function App(){
   const [newTurbotype, setNewTurbotype] = useState('');
   const [thresholdDraft, setThresholdDraft] = useState(DEFAULT_SETTINGS.lowStockThreshold);
 
-  const showToast = (msg) => {
+  const [gebruiker, setGebruiker] = useState(() => localStorage.getItem('voorraad_gebruikersnaam') || '');
+  const [naamInvoer, setNaamInvoer] = useState('');
+  const [history, setHistory] = useState([]);
+  const [toastAction, setToastAction] = useState(null);
+  const [sortField, setSortField] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+  const [sortFieldTurbo, setSortFieldTurbo] = useState(null);
+  const [sortDirTurbo, setSortDirTurbo] = useState('asc');
+
+  const showToast = (msg, action) => {
     setToast(msg);
-    setTimeout(()=>setToast(''), 2200);
+    setToastAction(action || null);
+    setTimeout(()=>{ setToast(''); setToastAction(null); }, action ? 6000 : 2200);
+  };
+
+  const saveNaam = () => {
+    const v = naamInvoer.trim();
+    if(!v) return;
+    localStorage.setItem('voorraad_gebruikersnaam', v);
+    setGebruiker(v);
+  };
+
+  const logHistory = async (entity, action, record_id, snapshot) => {
+    const entry = { id: uid(), entity, action, record_id, snapshot, gebruiker: gebruiker || 'Onbekend', created_at: new Date().toISOString() };
+    try{ await supabase.from('history').insert(entry); }catch(e){ /* geschiedenis loggen mag falen zonder de actie te blokkeren */ }
+    setHistory(h => [entry, ...h]);
   };
 
   const loadAll = useCallback(async () => {
@@ -353,6 +381,10 @@ function App(){
         id: t.id, turbotype: t.turbotype, locatie: t.locatie, omschrijving: t.omschrijving,
         aantal: t.aantal, conditie: t.conditie, opmerking: t.opmerking || '', updatedAt: t.updated_at
       })));
+    }
+    const { data: historyData, error: historyErr } = await supabase.from('history').select('*').order('created_at', { ascending: false }).limit(200);
+    if(!historyErr && historyData){
+      setHistory(historyData);
     }
     const { data: settingsData, error: settingsErr } = await supabase.from('settings').select('*').eq('id', 1).single();
     if(!settingsErr && settingsData){
@@ -489,15 +521,27 @@ function App(){
     const { error } = await supabase.from('parts').insert(entry);
     if(error){ showToast('Opslaan mislukt: ' + error.message); return; }
     await persistParts([{...entry, updatedAt: entry.updated_at}, ...parts]);
+    logHistory('parts', 'toegevoegd', entry.id, entry);
     setForm({motortype: form.motortype, locatie:'', omschrijving:'', aantal:'', conditie:'N/A', opmerking:''});
     showToast('Onderdeel toegevoegd');
   };
 
+  const restorePart = async (snapshot) => {
+    const entry = {...snapshot, updated_at: new Date().toISOString()};
+    const { error } = await supabase.from('parts').insert(entry);
+    if(error){ showToast('Herstellen mislukt: ' + error.message); return; }
+    await persistParts([{...entry, updatedAt: entry.updated_at}, ...parts.filter(p => p.id !== entry.id)]);
+    logHistory('parts', 'hersteld', entry.id, entry);
+    showToast('Onderdeel hersteld');
+  };
+
   const deletePart = async (id) => {
+    const item = parts.find(p => p.id === id);
     const { error } = await supabase.from('parts').delete().eq('id', id);
     if(error){ showToast('Verwijderen mislukt: ' + error.message); return; }
     await persistParts(parts.filter(p => p.id !== id));
-    showToast('Onderdeel verwijderd');
+    if(item) logHistory('parts', 'verwijderd', id, item);
+    showToast('Onderdeel verwijderd', item ? {label:'Ongedaan maken', onClick: () => restorePart(item)} : null);
   };
 
   const startEdit = (p) => {
@@ -506,6 +550,7 @@ function App(){
   };
 
   const saveEdit = async () => {
+    const before = parts.find(p => p.id === editId);
     const updated = {...editDraft, aantal: Number(editDraft.aantal), updatedAt: new Date().toISOString()};
     const { error } = await supabase.from('parts').update({
       motortype: updated.motortype, locatie: updated.locatie, omschrijving: updated.omschrijving,
@@ -515,6 +560,7 @@ function App(){
     if(error){ showToast('Bijwerken mislukt: ' + error.message); return; }
     const next = parts.map(p => p.id === editId ? updated : p);
     await persistParts(next);
+    logHistory('parts', 'gewijzigd', editId, {voor: before, na: updated});
     setEditId(null);
     setEditDraft(null);
     showToast('Wijziging opgeslagen');
@@ -541,15 +587,27 @@ function App(){
     const { error } = await supabase.from('turbos').insert(entry);
     if(error){ showToast('Opslaan mislukt: ' + error.message); return; }
     await persistTurbos([{...entry, updatedAt: entry.updated_at}, ...turbos]);
+    logHistory('turbos', 'toegevoegd', entry.id, entry);
     setTurboForm({turbotype: turboForm.turbotype, locatie:'', omschrijving:'', aantal:'', conditie:'N/A', opmerking:''});
     showToast('Turbo toegevoegd');
   };
 
+  const restoreTurbo = async (snapshot) => {
+    const entry = {...snapshot, updated_at: new Date().toISOString()};
+    const { error } = await supabase.from('turbos').insert(entry);
+    if(error){ showToast('Herstellen mislukt: ' + error.message); return; }
+    await persistTurbos([{...entry, updatedAt: entry.updated_at}, ...turbos.filter(t => t.id !== entry.id)]);
+    logHistory('turbos', 'hersteld', entry.id, entry);
+    showToast('Turbo hersteld');
+  };
+
   const deleteTurbo = async (id) => {
+    const item = turbos.find(t => t.id === id);
     const { error } = await supabase.from('turbos').delete().eq('id', id);
     if(error){ showToast('Verwijderen mislukt: ' + error.message); return; }
     await persistTurbos(turbos.filter(t => t.id !== id));
-    showToast('Turbo verwijderd');
+    if(item) logHistory('turbos', 'verwijderd', id, item);
+    showToast('Turbo verwijderd', item ? {label:'Ongedaan maken', onClick: () => restoreTurbo(item)} : null);
   };
 
   const startEditTurbo = (t) => {
@@ -558,6 +616,7 @@ function App(){
   };
 
   const saveEditTurbo = async () => {
+    const before = turbos.find(t => t.id === editTurboId);
     const updated = {...editTurboDraft, aantal: Number(editTurboDraft.aantal), updatedAt: new Date().toISOString()};
     const { error } = await supabase.from('turbos').update({
       turbotype: updated.turbotype, locatie: updated.locatie, omschrijving: updated.omschrijving,
@@ -567,6 +626,7 @@ function App(){
     if(error){ showToast('Bijwerken mislukt: ' + error.message); return; }
     const next = turbos.map(t => t.id === editTurboId ? updated : t);
     await persistTurbos(next);
+    logHistory('turbos', 'gewijzigd', editTurboId, {voor: before, na: updated});
     setEditTurboId(null);
     setEditTurboDraft(null);
     showToast('Wijziging opgeslagen');
@@ -623,19 +683,71 @@ function App(){
     return <div className="app"><div className="main"><div className="loading">Voorraad wordt geladen…</div></div></div>;
   }
 
-  const filtered = parts.filter(p => {
+  if(!gebruiker){
+    return (
+      <div className="app" style={{alignItems:'center', justifyContent:'center', minHeight:400}}>
+        <div className="card" style={{maxWidth:340, textAlign:'center'}}>
+          <div style={{fontFamily:'Oswald,sans-serif', fontWeight:700, fontSize:18, marginBottom:6}}>Welkom</div>
+          <p style={{fontSize:13, color:'#7A8390', marginBottom:14}}>Vul je naam in zodat wijzigingen aan je toegeschreven kunnen worden in de geschiedenis.</p>
+          <input type="text" placeholder="Jouw naam" value={naamInvoer} onChange={e=>setNaamInvoer(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') saveNaam();}} style={{width:'100%', marginBottom:10}} />
+          <button className="btn btn-primary" style={{width:'100%'}} onClick={saveNaam}>Doorgaan</button>
+        </div>
+      </div>
+    );
+  }
+
+  const sortRows = (rows, field, dir) => {
+    if(!field) return rows;
+    const sorted = [...rows].sort((a,b) => {
+      let av = a[field], bv = b[field];
+      if(typeof av === 'string') av = av.toLowerCase();
+      if(typeof bv === 'string') bv = bv.toLowerCase();
+      if(av < bv) return -1;
+      if(av > bv) return 1;
+      return 0;
+    });
+    return dir === 'desc' ? sorted.reverse() : sorted;
+  };
+
+  const toggleSort = (field) => {
+    if(sortField === field){ setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); }
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const toggleSortTurbo = (field) => {
+    if(sortFieldTurbo === field){ setSortDirTurbo(sortDirTurbo === 'asc' ? 'desc' : 'asc'); }
+    else { setSortFieldTurbo(field); setSortDirTurbo('asc'); }
+  };
+
+  const sortArrow = (field, curField, curDir) => curField === field ? (curDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  const exportToExcel = (rows, typeLabel, typeField) => {
+    if(rows.length === 0){ showToast('Niets om te exporteren'); return; }
+    const data = rows.map(r => ({
+      [typeLabel]: r[typeField], Locatie: r.locatie, Omschrijving: r.omschrijving,
+      Aantal: r.aantal, Conditie: r.conditie, Opmerking: r.opmerking || ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbook, ws, 'Voorraad');
+    const datum = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wbook, `voorraad-${typeField}-${datum}.xlsx`);
+    showToast('Excel-bestand gedownload');
+  };
+
+  const filtered = sortRows(parts.filter(p => {
     const matchMotor = !filterMotor || p.motortype === filterMotor;
     const q = search.trim().toLowerCase();
     const matchSearch = !q || p.omschrijving.toLowerCase().includes(q) || p.locatie.toLowerCase().includes(q) || p.motortype.toLowerCase().includes(q);
     return matchMotor && matchSearch;
-  });
+  }), sortField, sortDir);
 
-  const filteredTurbos = turbos.filter(t => {
+  const filteredTurbos = sortRows(turbos.filter(t => {
     const matchTurbo = !filterTurbo || t.turbotype === filterTurbo;
     const q = searchTurbo.trim().toLowerCase();
     const matchSearch = !q || t.omschrijving.toLowerCase().includes(q) || t.locatie.toLowerCase().includes(q) || t.turbotype.toLowerCase().includes(q);
     return matchTurbo && matchSearch;
-  });
+  }), sortFieldTurbo, sortDirTurbo);
 
   const byMotor = {};
   parts.forEach(p => {
@@ -662,6 +774,7 @@ function App(){
         <button className={"nav-btn" + (tab==='dashboard'?' active':'')} onClick={()=>setTab('dashboard')}>Dashboard</button>
         <button className={"nav-btn" + (tab==='voorraad'?' active':'')} onClick={()=>setTab('voorraad')}>Voorraad</button>
         <button className={"nav-btn" + (tab==='turbos'?' active':'')} onClick={()=>setTab('turbos')}>Turbos</button>
+        <button className={"nav-btn" + (tab==='geschiedenis'?' active':'')} onClick={()=>setTab('geschiedenis')}>Geschiedenis</button>
         <button className={"nav-btn" + (tab==='instellingen'?' active':'')} onClick={()=>setTab('instellingen')}>Instellingen</button>
         <div style={{marginTop:'auto', paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.12)'}}>
           <button className="nav-btn" onClick={async ()=>{ await loadAll(); showToast('Bijgewerkt'); }}>↻ Vernieuwen</button>
@@ -781,6 +894,7 @@ function App(){
               </select>
               <input type="text" placeholder="Zoeken op omschrijving, locatie of type..." value={search} onChange={e=>setSearch(e.target.value)} style={{minWidth:260}} />
               {filterMotor && <button className="btn btn-ghost btn-sm" onClick={()=>setFilterMotor('')}>Filter wissen</button>}
+              <button className="btn btn-ghost btn-sm" onClick={()=>exportToExcel(filtered, 'Motortype', 'motortype')}>⬇ Exporteren naar Excel</button>
               <span style={{marginLeft:'auto', fontSize:12, color:'#7A8390'}}>{filtered.length} van {parts.length} regels</span>
             </div>
 
@@ -794,7 +908,11 @@ function App(){
                 <table>
                   <thead>
                     <tr>
-                      <th>Motortype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th><th>Opmerking</th><th></th>
+                      <th>Motortype</th>
+                      <th style={{cursor:'pointer'}} onClick={()=>toggleSort('locatie')}>Locatie{sortArrow('locatie', sortField, sortDir)}</th>
+                      <th style={{cursor:'pointer'}} onClick={()=>toggleSort('omschrijving')}>Omschrijving{sortArrow('omschrijving', sortField, sortDir)}</th>
+                      <th style={{cursor:'pointer'}} onClick={()=>toggleSort('aantal')}>Aantal{sortArrow('aantal', sortField, sortDir)}</th>
+                      <th>Conditie</th><th>Opmerking</th><th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -913,6 +1031,7 @@ function App(){
               </select>
               <input type="text" placeholder="Zoeken op omschrijving, locatie of type..." value={searchTurbo} onChange={e=>setSearchTurbo(e.target.value)} style={{minWidth:260}} />
               {filterTurbo && <button className="btn btn-ghost btn-sm" onClick={()=>setFilterTurbo('')}>Filter wissen</button>}
+              <button className="btn btn-ghost btn-sm" onClick={()=>exportToExcel(filteredTurbos, 'Turbotype', 'turbotype')}>⬇ Exporteren naar Excel</button>
               <span style={{marginLeft:'auto', fontSize:12, color:'#7A8390'}}>{filteredTurbos.length} van {turbos.length} regels</span>
             </div>
 
@@ -926,7 +1045,11 @@ function App(){
                 <table>
                   <thead>
                     <tr>
-                      <th>Turbotype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th><th>Opmerking</th><th></th>
+                      <th>Turbotype</th>
+                      <th style={{cursor:'pointer'}} onClick={()=>toggleSortTurbo('locatie')}>Locatie{sortArrow('locatie', sortFieldTurbo, sortDirTurbo)}</th>
+                      <th style={{cursor:'pointer'}} onClick={()=>toggleSortTurbo('omschrijving')}>Omschrijving{sortArrow('omschrijving', sortFieldTurbo, sortDirTurbo)}</th>
+                      <th style={{cursor:'pointer'}} onClick={()=>toggleSortTurbo('aantal')}>Aantal{sortArrow('aantal', sortFieldTurbo, sortDirTurbo)}</th>
+                      <th>Conditie</th><th>Opmerking</th><th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -961,6 +1084,51 @@ function App(){
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'geschiedenis' && (
+          <div>
+            <h1 className="page-title">Geschiedenis</h1>
+            <p className="page-sub">Laatste {history.length} wijzigingen, nieuwste eerst</p>
+
+            <div className="card" style={{padding:0, overflowX:'auto'}}>
+              {history.length === 0 ? (
+                <div className="empty-state">
+                  <div className="em-title">Nog geen wijzigingen gelogd</div>
+                  <div>Zodra iemand iets toevoegt, wijzigt of verwijdert, verschijnt dat hier.</div>
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr><th>Wanneer</th><th>Gebruiker</th><th>Actie</th><th>Categorie</th><th>Wat</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {history.map(h => {
+                      const label = h.entity === 'parts' ? (h.snapshot.motortype || (h.snapshot.na && h.snapshot.na.motortype) || (h.snapshot.voor && h.snapshot.voor.motortype)) : (h.snapshot.turbotype || (h.snapshot.na && h.snapshot.na.turbotype) || (h.snapshot.voor && h.snapshot.voor.turbotype));
+                      const omschr = h.action === 'gewijzigd' ? (h.snapshot.na && h.snapshot.na.omschrijving) : h.snapshot.omschrijving;
+                      const when = new Date(h.created_at).toLocaleString('nl-NL', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+                      return (
+                        <tr key={h.id}>
+                          <td style={{whiteSpace:'nowrap', fontSize:12, color:'#7A8390'}}>{when}</td>
+                          <td>{h.gebruiker}</td>
+                          <td>
+                            <span className={"cond-pill " + (h.action === 'verwijderd' ? 'cond-na' : h.action === 'toegevoegd' ? 'cond-good' : 'cond-mid')}>{h.action}</span>
+                          </td>
+                          <td><span className="pill">{h.entity === 'parts' ? 'Voorraad' : 'Turbo'}</span></td>
+                          <td>{label} — {omschr}</td>
+                          <td>
+                            {h.action === 'verwijderd' && (
+                              <button className="btn btn-ghost btn-sm" onClick={()=> h.entity === 'parts' ? restorePart(h.snapshot) : restoreTurbo(h.snapshot)}>Herstellen</button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -1024,7 +1192,7 @@ function App(){
           </div>
         )}
       </div>
-      <Toast msg={toast} />
+      <Toast msg={toast} action={toastAction} />
     </div>
   );
 }
