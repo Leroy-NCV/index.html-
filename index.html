@@ -351,7 +351,7 @@ function App(){
   const showToast = (msg, action) => {
     setToast(msg);
     setToastAction(action || null);
-    setTimeout(()=>{ setToast(''); setToastAction(null); }, action ? 6000 : 2200);
+    setTimeout(()=>{ setToast(''); setToastAction(null); }, action ? 15000 : 2200);
   };
 
   const saveNaam = () => {
@@ -773,7 +773,6 @@ function App(){
         </div>
         <button className={"nav-btn" + (tab==='dashboard'?' active':'')} onClick={()=>setTab('dashboard')}>Dashboard</button>
         <button className={"nav-btn" + (tab==='voorraad'?' active':'')} onClick={()=>setTab('voorraad')}>Voorraad</button>
-        <button className={"nav-btn" + (tab==='turbos'?' active':'')} onClick={()=>setTab('turbos')}>Turbos</button>
         <button className={"nav-btn" + (tab==='geschiedenis'?' active':'')} onClick={()=>setTab('geschiedenis')}>Geschiedenis</button>
         <button className={"nav-btn" + (tab==='instellingen'?' active':'')} onClick={()=>setTab('instellingen')}>Instellingen</button>
         <div style={{marginTop:'auto', paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.12)'}}>
@@ -819,12 +818,6 @@ function App(){
                   </div>
                 );
               })}
-              <div className={"stat-card" + (lowStockTurboRows.length > 0 ? " low" : "")} onClick={()=>setTab('turbos')} style={{cursor:'pointer'}}>
-                <div className="stat-motor">Turbo's</div>
-                <div className="stat-count">{totalTurboUnits}</div>
-                <div className="stat-label">{totalTurbos} regel{totalTurbos===1?'':'s'}</div>
-                {lowStockTurboRows.length > 0 && <div className="badge-low">Lage voorraad</div>}
-              </div>
             </div>
           </div>
         )}
@@ -948,139 +941,6 @@ function App(){
                         <td style={{whiteSpace:'nowrap'}}>
                           <button className="btn btn-ghost btn-sm" onClick={()=>startEdit(p)} style={{marginRight:6}}>Bewerken</button>
                           <button className="btn btn-danger btn-sm" onClick={()=>deletePart(p.id)}>Verwijderen</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        )}
-
-        {tab === 'turbos' && (
-          <div>
-            <h1 className="page-title">Turbos</h1>
-            <p className="page-sub">{totalTurbos} turbo's · {totalTurboUnits} stuks totaal</p>
-
-            {lowStockTurboRows.length > 0 && (
-              <div className="card" style={{borderLeft:'4px solid var(--rust)', marginBottom:20}}>
-                <strong style={{color:'var(--rust)'}}>Lage voorraad turbo's</strong>
-                <span style={{fontSize:12, color:'#7A8390'}}> — onder de {settings.lowStockThreshold} stuks</span>
-                <table style={{marginTop:10}}>
-                  <thead><tr><th>Turbotype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th></tr></thead>
-                  <tbody>
-                    {lowStockTurboRows.map(t => (
-                      <tr key={t.id}>
-                        <td><span className="pill">{t.turbotype}</span></td>
-                        <td>{t.locatie}</td>
-                        <td>{t.omschrijving}</td>
-                        <td style={{color:'var(--rust)', fontWeight:600}}>{t.aantal}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <form onSubmit={addTurbo} className="card" style={{marginBottom:20}}>
-              <div className="form-grid">
-                <div>
-                  <label>Turbotype</label>
-                  {settings.turbotypes.length > 0 ? (
-                    <select value={turboForm.turbotype} onChange={e=>setTurboForm({...turboForm, turbotype:e.target.value})} style={{width:'100%'}}>
-                      <option value="">Kies...</option>
-                      {settings.turbotypes.map(tt => <option key={tt} value={tt}>{tt}</option>)}
-                    </select>
-                  ) : (
-                    <input type="text" value={turboForm.turbotype} onChange={e=>setTurboForm({...turboForm, turbotype:e.target.value})} style={{width:'100%'}} placeholder="bv. TD04" />
-                  )}
-                </div>
-                <div>
-                  <label>Locatie</label>
-                  <input type="text" value={turboForm.locatie} onChange={e=>setTurboForm({...turboForm, locatie:e.target.value})} style={{width:'100%'}} placeholder="bv. C-03-2" />
-                </div>
-                <div style={{gridColumn:'span 2'}}>
-                  <label>Omschrijving</label>
-                  <input type="text" value={turboForm.omschrijving} onChange={e=>setTurboForm({...turboForm, omschrijving:e.target.value})} style={{width:'100%'}} placeholder="bv. Turbo compleet" />
-                </div>
-                <div>
-                  <label>Aantal</label>
-                  <input type="number" min="0" value={turboForm.aantal} onChange={e=>setTurboForm({...turboForm, aantal:e.target.value})} style={{width:'100%'}} />
-                </div>
-                <div>
-                  <label>Conditie</label>
-                  <select value={turboForm.conditie} onChange={e=>setTurboForm({...turboForm, conditie:e.target.value})} style={{width:'100%'}}>
-                    {settings.condities.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div style={{gridColumn:'span 5'}}>
-                  <label>Opmerking</label>
-                  <input type="text" value={turboForm.opmerking} onChange={e=>setTurboForm({...turboForm, opmerking:e.target.value})} style={{width:'100%'}} placeholder="optioneel" />
-                </div>
-                <div style={{display:'flex', alignItems:'flex-end'}}>
-                  <button className="btn btn-primary" type="submit" style={{width:'100%'}}>Toevoegen</button>
-                </div>
-              </div>
-            </form>
-
-            <div className="toolbar">
-              <select value={filterTurbo} onChange={e=>setFilterTurbo(e.target.value)}>
-                <option value="">Alle turbotypes</option>
-                {settings.turbotypes.map(tt => <option key={tt} value={tt}>{tt}</option>)}
-              </select>
-              <input type="text" placeholder="Zoeken op omschrijving, locatie of type..." value={searchTurbo} onChange={e=>setSearchTurbo(e.target.value)} style={{minWidth:260}} />
-              {filterTurbo && <button className="btn btn-ghost btn-sm" onClick={()=>setFilterTurbo('')}>Filter wissen</button>}
-              <button className="btn btn-ghost btn-sm" onClick={()=>exportToExcel(filteredTurbos, 'Turbotype', 'turbotype')}>⬇ Exporteren naar Excel</button>
-              <span style={{marginLeft:'auto', fontSize:12, color:'#7A8390'}}>{filteredTurbos.length} van {turbos.length} regels</span>
-            </div>
-
-            <div className="card" style={{padding:0, overflowX:'auto'}}>
-              {filteredTurbos.length === 0 ? (
-                <div className="empty-state">
-                  <div className="em-title">Geen turbo's gevonden</div>
-                  <div>Voeg hierboven een turbo toe of pas je filter aan.</div>
-                </div>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Turbotype</th>
-                      <th style={{cursor:'pointer'}} onClick={()=>toggleSortTurbo('locatie')}>Locatie{sortArrow('locatie', sortFieldTurbo, sortDirTurbo)}</th>
-                      <th style={{cursor:'pointer'}} onClick={()=>toggleSortTurbo('omschrijving')}>Omschrijving{sortArrow('omschrijving', sortFieldTurbo, sortDirTurbo)}</th>
-                      <th style={{cursor:'pointer'}} onClick={()=>toggleSortTurbo('aantal')}>Aantal{sortArrow('aantal', sortFieldTurbo, sortDirTurbo)}</th>
-                      <th>Conditie</th><th>Opmerking</th><th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTurbos.map(t => editTurboId === t.id ? (
-                      <tr key={t.id} className="edit-row">
-                        <td><input type="text" value={editTurboDraft.turbotype} onChange={e=>setEditTurboDraft({...editTurboDraft, turbotype:e.target.value})} /></td>
-                        <td><input type="text" value={editTurboDraft.locatie} onChange={e=>setEditTurboDraft({...editTurboDraft, locatie:e.target.value})} /></td>
-                        <td><input type="text" value={editTurboDraft.omschrijving} onChange={e=>setEditTurboDraft({...editTurboDraft, omschrijving:e.target.value})} /></td>
-                        <td><input type="number" value={editTurboDraft.aantal} onChange={e=>setEditTurboDraft({...editTurboDraft, aantal:e.target.value})} /></td>
-                        <td>
-                          <select value={editTurboDraft.conditie} onChange={e=>setEditTurboDraft({...editTurboDraft, conditie:e.target.value})}>
-                            {settings.condities.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </td>
-                        <td><input type="text" value={editTurboDraft.opmerking} onChange={e=>setEditTurboDraft({...editTurboDraft, opmerking:e.target.value})} /></td>
-                        <td style={{whiteSpace:'nowrap'}}>
-                          <button className="btn btn-primary btn-sm" onClick={saveEditTurbo} style={{marginRight:6}}>Opslaan</button>
-                          <button className="btn btn-ghost btn-sm" onClick={cancelEditTurbo}>Annuleren</button>
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr key={t.id}>
-                        <td><span className="pill">{t.turbotype}</span></td>
-                        <td>{t.locatie}</td>
-                        <td>{t.omschrijving}</td>
-                        <td style={{fontWeight:600, color: t.aantal < settings.lowStockThreshold ? 'var(--rust)' : 'inherit'}}>{t.aantal}</td>
-                        <td><span className={"cond-pill " + condClass(t.conditie)}>{t.conditie}</span></td>
-                        <td style={{color:'#7A8390'}}>{t.opmerking || '—'}</td>
-                        <td style={{whiteSpace:'nowrap'}}>
-                          <button className="btn btn-ghost btn-sm" onClick={()=>startEditTurbo(t)} style={{marginRight:6}}>Bewerken</button>
-                          <button className="btn btn-danger btn-sm" onClick={()=>deleteTurbo(t.id)}>Verwijderen</button>
                         </td>
                       </tr>
                     ))}
