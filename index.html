@@ -328,6 +328,7 @@ function App(){
   const [editId, setEditId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [mutateItem, setMutateItem] = useState(null);
+  const [detailMotor, setDetailMotor] = useState(null);
   const [mutateMode, setMutateMode] = useState('uit');
   const [mutateAmount, setMutateAmount] = useState(1);
   const [mutateNote, setMutateNote] = useState('');
@@ -815,7 +816,7 @@ function App(){
           <div className="brand-title">Motorvoorraad</div>
         </div>
         <button className={"nav-btn" + (tab==='dashboard'?' active':'')} onClick={()=>setTab('dashboard')}>Dashboard</button>
-        <button className={"nav-btn" + (tab==='voorraad'?' active':'')} onClick={()=>setTab('voorraad')}>Voorraad</button>
+        <button className={"nav-btn" + (tab==='voorraad'?' active':'')} onClick={()=>setTab('voorraad')}>Voorraad invoer</button>
         <button className={"nav-btn" + (tab==='geschiedenis'?' active':'')} onClick={()=>setTab('geschiedenis')}>Geschiedenis</button>
         <button className={"nav-btn" + (tab==='instellingen'?' active':'')} onClick={()=>setTab('instellingen')}>Instellingen</button>
         <div style={{marginTop:'auto', paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.12)'}}>
@@ -853,7 +854,7 @@ function App(){
               {settings.motortypes.map(mt => {
                 const d = byMotor[mt] || {count:0,total:0,low:false};
                 return (
-                  <div key={mt} className={"stat-card" + (d.low?" low":"")} onClick={()=>{setFilterMotor(mt); setTab('voorraad');}} style={{cursor:'pointer'}}>
+                  <div key={mt} className={"stat-card" + (d.low?" low":"")} onClick={()=>setDetailMotor(mt)} style={{cursor:'pointer'}}>
                     <div className="stat-motor">{mt}</div>
                     <div className="stat-count">{d.total}</div>
                     <div className="stat-label">{d.count} regel{d.count===1?'':'s'}</div>
@@ -867,7 +868,7 @@ function App(){
 
         {tab === 'voorraad' && (
           <div>
-            <h1 className="page-title">Voorraad</h1>
+            <h1 className="page-title">Voorraad invoer</h1>
             <p className="page-sub">Nieuw onderdeel toevoegen en bestaande voorraad beheren</p>
 
             <div className="card" style={{marginBottom:20, borderLeft:'4px solid var(--steel)'}}>
@@ -1102,6 +1103,37 @@ function App(){
           </div>
         )}
       </div>
+      {detailMotor && (
+        <div style={{position:'fixed', inset:0, background:'rgba(43,47,54,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:40}} onClick={()=>setDetailMotor(null)}>
+          <div className="card" style={{width:520, maxWidth:'90vw', maxHeight:'80vh', overflowY:'auto', background:'#fff'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+              <div style={{fontFamily:'Oswald,sans-serif', fontWeight:700, fontSize:18}}>{detailMotor}</div>
+              <button className="btn btn-ghost btn-sm" onClick={()=>setDetailMotor(null)}>Sluiten</button>
+            </div>
+            {parts.filter(p => p.motortype === detailMotor).length === 0 ? (
+              <div className="empty-state" style={{padding:20}}>
+                <div className="em-title">Geen onderdelen</div>
+                <div>Er staat nog niets geregistreerd voor dit motortype.</div>
+              </div>
+            ) : (
+              <table>
+                <thead><tr><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th></tr></thead>
+                <tbody>
+                  {parts.filter(p => p.motortype === detailMotor).map(p => (
+                    <tr key={p.id}>
+                      <td>{p.locatie}</td>
+                      <td>{p.omschrijving}</td>
+                      <td style={{fontWeight:600, color: p.aantal < settings.lowStockThreshold ? 'var(--rust)' : 'inherit'}}>{p.aantal}</td>
+                      <td><span className={"cond-pill " + condClass(p.conditie)}>{p.conditie}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
       {mutateItem && (
         <div style={{position:'fixed', inset:0, background:'rgba(43,47,54,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:40}}>
           <div className="card" style={{width:320, background:'#fff'}}>
