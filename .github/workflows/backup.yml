@@ -1,0 +1,45 @@
+yamlname: Wekelijkse voorraad-backup
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # elke maandag om 06:00 UTC (± 7-8u NL-tijd)
+  workflow_dispatch: {}     # laat je 'm ook handmatig starten via de Actions-tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+
+      - name: Node.js instellen
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Afhankelijkheden installeren
+        run: npm install xlsx
+
+      - name: Backup-bestand maken
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node .github/scripts/backup.mjs
+
+      - name: Backup mailen
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Voorraad backup - ${{ github.run_id }}"
+          to: ${{ secrets.MAIL_TO }}
+          from: Voorraad Hal 4 <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            Bijgevoegd de automatische wekelijkse back-up van de voorraad (Hal 4).
+
+            Wil je deze gegevens ooit terugzetten? Ga dan naar de website, open het
+            tabblad "Voorraad invoer", en gebruik de knop "Excel importeren" met dit
+            bestand.
+          attachments: backup-output/voorraad-backup-*.xlsx
