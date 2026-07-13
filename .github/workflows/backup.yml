@@ -1,4 +1,4 @@
-yamlname: Wekelijkse voorraad-backup
+name: Wekelijkse voorraad-backup
 
 on:
   schedule:
