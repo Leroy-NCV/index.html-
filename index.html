@@ -1150,20 +1150,6 @@ function App(){
             </div>
 
             <div className="card settings-block">
-              <h3>Turbotypes</h3>
-              <p style={{fontSize:12, color:'#7A8390', marginTop:-4, marginBottom:10}}>Zolang deze lijst leeg is, kun je het turbotype vrij intypen bij het toevoegen van een turbo.</p>
-              <div className="chip-list">
-                {settings.turbotypes.map(tt => (
-                  <div className="chip" key={tt}>{tt}<button onClick={()=>removeTurbotype(tt)} title="Verwijderen">×</button></div>
-                ))}
-              </div>
-              <div className="add-inline">
-                <input type="text" placeholder="Nieuw turbotype (bv. TD04)" value={newTurbotype} onChange={e=>setNewTurbotype(e.target.value)} />
-                <button className="btn btn-primary btn-sm" onClick={addTurbotype}>Toevoegen</button>
-              </div>
-            </div>
-
-            <div className="card settings-block">
               <h3>Conditie-opties</h3>
               <div className="chip-list">
                 {settings.condities.map(c => (
@@ -1189,7 +1175,7 @@ function App(){
       </div>
       {detailMotor && (
         <div style={{position:'fixed', inset:0, background:'rgba(43,47,54,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:40}} onClick={()=>setDetailMotor(null)}>
-          <div className="card" style={{width:520, maxWidth:'90vw', maxHeight:'80vh', overflowY:'auto', background:'#fff'}} onClick={e=>e.stopPropagation()}>
+          <div className="card" style={{width:720, maxWidth:'90vw', maxHeight:'80vh', overflowY:'auto', background:'#fff'}} onClick={e=>e.stopPropagation()}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
               <div style={{fontFamily:'Oswald,sans-serif', fontWeight:700, fontSize:18}}>{detailMotor}</div>
               <button className="btn btn-ghost btn-sm" onClick={()=>setDetailMotor(null)}>Sluiten</button>
@@ -1201,18 +1187,21 @@ function App(){
               </div>
             ) : (
               <table>
-                <thead><tr><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th></tr></thead>
+                <thead><tr><th>Motortype</th><th>Locatie</th><th>Omschrijving</th><th>Aantal</th><th>Conditie</th><th>Opmerking</th></tr></thead>
                 <tbody>
                   {parts.filter(p => p.motortype === detailMotor).map(p => (
                     <tr key={p.id}>
+                      <td><span className="pill">{p.motortype}</span></td>
                       <td>{p.locatie}</td>
                       <td>{p.omschrijving}</td>
                       <td style={{fontWeight:600, color: p.aantal < settings.lowStockThreshold ? 'var(--rust)' : 'inherit'}}>{p.aantal}</td>
                       <td><span className={"cond-pill " + condClass(p.conditie)}>{p.conditie}</span></td>
+                      <td style={{color:'#7A8390'}}>{p.opmerking || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
             )}
           </div>
         </div>
