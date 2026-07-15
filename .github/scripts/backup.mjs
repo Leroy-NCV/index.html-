@@ -30,22 +30,18 @@ function toRows(items, typeField, typeLabel) {
 
 (async () => {
   const parts = await fetchTable('parts');
-  const turbos = await fetchTable('turbos');
 
   const wb = XLSX.utils.book_new();
 
   const wsInvoer = XLSX.utils.json_to_sheet(toRows(parts, 'motortype', 'Motortype'));
   XLSX.utils.book_append_sheet(wb, wsInvoer, 'Invoer');
 
-  const wsTurbos = XLSX.utils.json_to_sheet(toRows(turbos, 'turbotype', 'Turbotype'));
-  XLSX.utils.book_append_sheet(wb, wsTurbos, 'Turbos');
-
   fs.mkdirSync('backup-output', { recursive: true });
   const datum = new Date().toISOString().slice(0, 10);
   const filename = `backup-output/voorraad-backup-${datum}.xlsx`;
   XLSX.writeFile(wb, filename);
 
-  console.log(`Backup geschreven: ${filename} (${parts.length} onderdelen, ${turbos.length} turbo's)`);
+  console.log(`Backup geschreven: ${filename} (${parts.length} onderdelen)`);
   fs.writeFileSync('backup-output/filename.txt', filename);
 })().catch(err => {
   console.error(err);
